@@ -22,6 +22,7 @@ namespace MefContrib.Integration.Unity
         private AggregateCatalog aggregateCatalog;
         private ExportProvider[] providers;
         private CompositionContainer compositionContainer;
+        private bool isThreadSafe;
 
         /// <summary>
         /// Initializes a new instance of <see cref="CompositionIntegration"/> class.
@@ -51,7 +52,22 @@ namespace MefContrib.Integration.Unity
         {
             this.aggregateCatalog = new AggregateCatalog();
             this.register = register;
+            this.isThreadSafe = false;
             this.providers = providers;
+        }
+
+
+        ///<summary>
+        ///</summary>
+        public bool IsThreadSafe
+        {
+            get { return isThreadSafe; }
+            set
+            {
+                if (compositionContainer != null)
+                    throw new InvalidOperationException("Cannot set CompositionIntegration Threadsafety after it has been initialized.");
+                isThreadSafe = value;
+            }
         }
 
         /// <summary>
@@ -66,7 +82,7 @@ namespace MefContrib.Integration.Unity
         {
             TypeRegistrationTrackerExtension.RegisterIfMissing(Container);
 
-            this.compositionContainer = PrepareCompositionContainer();
+            this.compositionContainer = PrepareCompositionContainer(isThreadSafe);
 
             // Main strategies
             Context.Strategies.AddNew<EnumerableResolutionStrategy>(UnityBuildStage.TypeMapping);
@@ -81,15 +97,14 @@ namespace MefContrib.Integration.Unity
                 new CompositionContainerPolicy(compositionContainer));
         }
 
-        private CompositionContainer PrepareCompositionContainer()
+        private CompositionContainer PrepareCompositionContainer(bool isThreadsafe)
         {
             // Create the MEF container based on the catalog
-            var container = new CompositionContainer(this.aggregateCatalog, this.providers);
+            var container = new CompositionContainer(this.aggregateCatalog, isThreadsafe, this.providers);
 
             // If desired, register an instance of CompositionContainer and Unity container in MEF,
             // this will also make CompositionContainer available to the Unity
-            if (Register)
-            {
+            if (Register) {
                 // Create composition batch and add the MEF container and the Unity
                 // container to the MEF
                 var batch = new CompositionBatch();
@@ -149,7 +164,7 @@ namespace MefContrib.Integration.Unity
 
             if (aggregateCatalog != null)
                 aggregateCatalog.Dispose();
-            
+
             compositionContainer = null;
             aggregateCatalog = null;
             providers = null;

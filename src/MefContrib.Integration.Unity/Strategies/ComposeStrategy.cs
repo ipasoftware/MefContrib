@@ -24,7 +24,8 @@ namespace MefContrib.Integration.Unity.Strategies
             if (attributes.Length == 0)
             {
                 var container = context.Policies.Get<ICompositionContainerPolicy>(null).Container;
-                container.SatisfyImportsOnce(context.Existing);
+                container.ComposeParts(context.Existing);
+                // container.SatisfyImportsOnce(context.Existing);
             }
         }
     }

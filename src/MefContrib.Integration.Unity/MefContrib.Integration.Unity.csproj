@@ -112,7 +112,7 @@
   <ItemGroup>
     <ProjectReference Include="..\MefContrib\MefContrib.csproj">
       <Project>{0CCE812A-F4EB-4379-B820-D8ADA4330235}</Project>
-      <Name>MefContrib</Name>
+      <Name>MefContrib %28Standard\External\MefContrib\MefContrib%29</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -21,7 +21,9 @@ namespace MefContrib.Integration.Unity
         {
             lock (unityContainer)
             {
-                var compositionIntegration = EnableCompositionIntegration(unityContainer);
+                var ci = unityContainer.Configure<CompositionIntegration>();
+                var isThreadsafe = ci == null ? false : ci.IsThreadSafe;
+                var compositionIntegration = EnableCompositionIntegration(unityContainer, isThreadsafe);
                 compositionIntegration.Catalogs.Add(catalog);
             }
         }
@@ -36,30 +38,40 @@ namespace MefContrib.Integration.Unity
         public static CompositionIntegration EnableCompositionIntegration(
             this IUnityContainer unityContainer)
         {
-            lock (unityContainer)
-            {
+            return unityContainer.EnableCompositionIntegration(false);
+        }
+
+
+        /// <summary>
+        /// Enables Managed Extensibility Framework two-way integration.
+        /// </summary>
+        /// <param name="unityContainer">Target container.</param>
+        /// <param name="isThreadsafe"></param>
+        /// <returns>
+        /// <see cref="CompositionIntegration"/> instance.
+        /// </returns>
+        public static CompositionIntegration EnableCompositionIntegration(
+            this IUnityContainer unityContainer, bool isThreadsafe)
+        {
+            lock (unityContainer) {
                 var extension = unityContainer.Configure<CompositionIntegration>();
-                if (extension == null)
-                {
+                if (extension == null) {
                     var adapter = new UnityContainerAdapter(unityContainer);
                     var containerExportProvider = new ContainerExportProvider(adapter);
-                    var parentExtension = (CompositionIntegration) null;
-                    
-                    if (unityContainer.Parent != null)
-                    {
+                    var parentExtension = (CompositionIntegration)null;
+
+                    if (unityContainer.Parent != null) {
                         parentExtension = unityContainer.Parent.Configure<CompositionIntegration>();
                     }
 
-                    if (parentExtension != null)
-                    {
+                    if (parentExtension != null) {
                         // Get the parent ContainerExportProvider
                         var parentContainerExportProvider = (ContainerExportProvider)parentExtension.Providers.Where(
                             ep => typeof(ContainerExportProvider).IsAssignableFrom(ep.GetType())).First();
 
                         // Collect all the exports provided by the parent container and add
                         // them to the child export provider
-                        foreach (var definition in parentContainerExportProvider.FactoryExportProvider.ReadOnlyDefinitions)
-                        {
+                        foreach (var definition in parentContainerExportProvider.FactoryExportProvider.ReadOnlyDefinitions) {
                             containerExportProvider.FactoryExportProvider.Register(
                                 definition.ContractType,
                                 definition.RegistrationName);
@@ -68,17 +80,15 @@ namespace MefContrib.Integration.Unity
                         // Grab all the parent export providers except the container ones
                         var parentExporters = new List<ExportProvider>(
                             parentExtension.Providers.Where(
-                                ep => !typeof (ContainerExportProvider).IsAssignableFrom(ep.GetType())))
-                                                  { containerExportProvider };
+                                ep => !typeof(ContainerExportProvider).IsAssignableFrom(ep.GetType()))) { containerExportProvider };
 
                         var catalog = new AggregateCatalog(parentExtension.Catalogs);
 
-                        extension = new CompositionIntegration(true, parentExporters.ToArray());
+                        extension = new CompositionIntegration(true, parentExporters.ToArray()) { IsThreadSafe = isThreadsafe };
                         extension.Catalogs.Add(catalog);
                     }
-                    else
-                    {
-                        extension = new CompositionIntegration(true, containerExportProvider);
+                    else {
+                        extension = new CompositionIntegration(true, containerExportProvider) { IsThreadSafe = isThreadsafe };
                     }
 
                     unityContainer.AddExtension(extension);
@@ -98,9 +108,8 @@ namespace MefContrib.Integration.Unity
         public static IUnityContainer CreateChildContainer(this IUnityContainer unityContainer, bool enableComposition)
         {
             var childContainer = unityContainer.CreateChildContainer();
-            if (enableComposition)
-            {
-                childContainer.EnableCompositionIntegration();
+            if (enableComposition) {
+                childContainer.EnableCompositionIntegration(unityContainer.Configure<CompositionIntegration>().IsThreadSafe);
             }
 
             return childContainer;
