@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Linq;
+using MefContrib.Hosting.Conventions;
+
 namespace MefContrib.Integration.Unity.Strategies
 {
     using System;
@@ -10,6 +14,9 @@ namespace MefContrib.Integration.Unity.Strategies
     /// </summary>
     public class ComposeStrategy : BuilderStrategy
     {
+        static Dictionary<Type, bool> needsRecompseCache = new Dictionary<Type, bool>();
+        private static object composeLock = new object();
+
         /// <summary>
         /// Called during the chain of responsibility for a build operation. The
         /// PostBuildUp method is called when the chain has finished the PreBuildUp
@@ -21,12 +28,35 @@ namespace MefContrib.Integration.Unity.Strategies
             var type = context.Existing.GetType();
             var attributes = type.GetCustomAttributes(typeof(PartNotComposableAttribute), false);
 
-            if (attributes.Length == 0)
-            {
+            if (attributes.Length == 0) {
                 var container = context.Policies.Get<ICompositionContainerPolicy>(null).Container;
-                container.ComposeParts(context.Existing);
-                // container.SatisfyImportsOnce(context.Existing);
+                if (NeedsRecompose(type)) {
+                    lock (composeLock) {
+                        container.ComposeParts(context.Existing);
+                    }
+                }
+                else {
+                    container.SatisfyImportsOnce(context.Existing);
+                }
             }
+        }
+
+        private static bool NeedsRecompose(Type type)
+        {
+            bool needsRecompse;
+            if (!needsRecompseCache.TryGetValue(type, out needsRecompse)) {
+                var attrs = type.GetAllInstanceProperties()
+                    .SelectMany(p => p.GetCustomAttributes(true))
+                    .Union(type.GetAllInstanceFields()
+                    .SelectMany(p => p.GetCustomAttributes(true)));
+                needsRecompse = attrs.Any(p => ((p is ImportAttribute) && ((ImportAttribute)p).AllowRecomposition) ||
+                    ((p is ImportManyAttribute) && ((ImportManyAttribute)p).AllowRecomposition));
+                lock (composeLock) {
+                    needsRecompseCache[type] = needsRecompse;
+                }
+            }
+
+            return needsRecompse;
         }
     }
 }

@@ -11,6 +11,26 @@ namespace MefContrib.Hosting.Conventions
     /// </summary>
     public static class TypeExtensions
     {
+        public static PropertyInfo[] GetAllInstanceProperties(this Type source)
+        {
+            return source.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        }
+
+        public static PropertyInfo[] GetAllStaticProperties(this Type source)
+        {
+            return source.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+        }
+
+        public static FieldInfo[] GetAllInstanceFields(this Type source)
+        {
+            return source.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        }
+
+        public static FieldInfo[] GetAllStaticFields(this Type source)
+        {
+            return source.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+        }
+
         public static IEnumerable<RequiredMetadataItem> GetRequiredMetadata(this Type source)
         {
             var requiredMetadata =
