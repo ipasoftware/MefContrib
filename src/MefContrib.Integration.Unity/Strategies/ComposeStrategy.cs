@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using MefContrib.Hosting.Conventions;
 
 namespace MefContrib.Integration.Unity.Strategies
@@ -31,8 +32,15 @@ namespace MefContrib.Integration.Unity.Strategies
             if (attributes.Length == 0) {
                 var container = context.Policies.Get<ICompositionContainerPolicy>(null).Container;
                 if (NeedsRecompose(type)) {
-                    lock (composeLock) {
-                        container.ComposeParts(context.Existing);
+                    while (true) {
+                        try {
+                            container.ComposeParts(context.Existing);
+                            break;
+                        }
+                        catch (InvalidOperationException ex) {
+                            Thread.SpinWait(5000);
+                        }
+
                     }
                 }
                 else {
